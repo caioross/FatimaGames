@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fatima Games</string>
+
+    <!-- Home -->
+    <string name="home_greeting">Bem-vinda</string>
+    <string name="home_choose_game">Escolha um jogo</string>
+    <string name="home_continue">Continuar</string>
+    <string name="game_jigsaw">Quebra-cabeça</string>
+    <string name="game_jigsaw_sub">Suas fotos</string>
+    <string name="game_mahjong">Mahjong</string>
+    <string name="game_mahjong_sub">Pares iguais</string>
+    <string name="game_match3">Combinar gemas</string>
+    <string name="game_match3_sub">3 iguais ou mais</string>
+    <string name="game_colorsort">Organizar cores</string>
+    <string name="game_colorsort_sub">Tubos coloridos</string>
+
+    <!-- Common -->
+    <string name="action_back">Voltar</string>
+    <string name="action_records">Records</string>
+    <string name="action_settings">Configurações</string>
+    <string name="action_pause">Pausar</string>
+    <string name="action_continue">Continuar</string>
+    <string name="action_restart">Reiniciar</string>
+    <string name="action_exit">Sair</string>
+    <string name="action_undo">Desfazer</string>
+    <string name="action_hint">Dica</string>
+    <string name="action_shuffle">Embaralhar</string>
+    <string name="action_play_again">Jogar de novo</string>
+    <string name="action_home">Ir para o início</string>
+    <string name="action_save">Salvar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Apagar</string>
+    <string name="action_add_photo">Adicionar foto</string>
+
+    <!-- Win -->
+    <string name="win_title">Bom trabalho</string>
+    <string name="win_stats_time">Tempo</string>
+    <string name="win_stats_moves">Movimentos</string>
+    <string name="win_stats_score">Pontuação</string>
+
+    <!-- Empty states -->
+    <string name="empty_photos">Suas fotos vão aparecer aqui. Toque em Adicionar para começar.</string>
+    <string name="empty_records">Sem partidas ainda. Comece a jogar e seus records aparecem aqui.</string>
+
+    <!-- Jigsaw -->
+    <string name="jigsaw_select_image">Escolha uma imagem</string>
+    <string name="jigsaw_from_library">Minhas fotos</string>
+    <string name="jigsaw_from_gallery">Da galeria</string>
+    <string name="jigsaw_from_camera">Tirar foto</string>
+    <string name="jigsaw_difficulty">Dificuldade</string>
+    <string name="jigsaw_pieces_format">%1$d peças</string>
+    <string name="jigsaw_start">Começar</string>
+    <string name="jigsaw_show_guide">Mostrar guia</string>
+    <string name="jigsaw_progress_format">%1$d de %2$d</string>
+
+    <!-- Mahjong -->
+    <string name="mahjong_remaining_format">%1$d peças</string>
+    <string name="mahjong_no_moves">Sem mais movimentos. Que tal embaralhar?</string>
+
+    <!-- Match-3 -->
+    <string name="match3_stage_format">Fase %1$d</string>
+    <string name="match3_score_format">%1$d</string>
+
+    <!-- Color Sort -->
+    <string name="colorsort_stage_format">Fase %1$d</string>
+    <string name="colorsort_add_tube">Tubo extra</string>
+
+    <!-- Settings -->
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_theme_system">Automático</string>
+    <string name="settings_font_size">Tamanho da fonte</string>
+    <string name="settings_font_normal">Normal</string>
+    <string name="settings_font_large">Grande</string>
+    <string name="settings_font_xlarge">Maior</string>
+    <string name="settings_sounds">Sons</string>
+    <string name="settings_haptics">Vibração</string>
+    <string name="settings_reduce_motion">Reduzir animações</string>
+    <string name="settings_about">Sobre</string>
+
+    <!-- Confirm -->
+    <string name="confirm_exit_match_title">Sair da partida?</string>
+    <string name="confirm_exit_match_body">Seu progresso fica salvo. Você pode voltar a qualquer momento.</string>
+</resources>

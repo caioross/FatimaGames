@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Logo simples: F serifa em sage primary, dentro de uma forma orgânica -->
+    <path
+        android:fillColor="#7A9B7E"
+        android:pathData="M54,28 L72,28 C77,28 78,30 78,33 C78,36 76,38 73,38 L62,38 L62,50 L72,50 C75,50 77,52 77,55 C77,58 75,60 72,60 L62,60 L62,76 C62,79 60,81 57,81 C54,81 52,79 52,76 L52,33 C52,30 53,28 54,28 Z" />
+</vector>
