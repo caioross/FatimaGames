@@ -11,7 +11,7 @@ import kotlin.math.abs
 class JigsawEngine(
     val board: JigsawBoard,
     initialStates: List<PieceState> = board.initialStates,
-    val snapTolerancePx: Float = (board.cellSizePx * 0.18f),
+    val snapTolerancePx: Float = (board.cellSizePx * 0.32f), // 32% — bem forgiving para pessoas mais idosas
 ) {
     private val statesById: MutableMap<Int, PieceState> =
         initialStates.associateBy { it.pieceId }.toMutableMap()

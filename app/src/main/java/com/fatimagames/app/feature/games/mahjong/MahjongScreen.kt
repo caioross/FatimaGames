@@ -3,8 +3,8 @@ package com.fatimagames.app.feature.games.mahjong
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.Undo
@@ -31,16 +30,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fatimagames.app.core.theme.LocalAppTheme
 import com.fatimagames.app.core.theme.LocalAppTypography
 import com.fatimagames.app.core.ui.GameTopBar
 import com.fatimagames.app.core.ui.WinOverlay
+import com.fatimagames.app.feature.games.mahjong.domain.MahjongTile
+import com.fatimagames.app.feature.games.mahjong.ui.MahjongTile as MahjongTileVisual
+import com.fatimagames.app.feature.games.mahjong.ui.TileVisualState
 
 @Composable
 fun MahjongScreen(
@@ -57,6 +56,14 @@ fun MahjongScreen(
             title = "Mahjong",
             subtitle = "${state.remaining} peças",
             onBackClick = onBack,
+            rightContent = {
+                Text(
+                    formatTime(state.elapsedMs),
+                    color = theme.color.textPrimary,
+                    style = typo.numericMd,
+                    modifier = Modifier.padding(end = theme.spacing.md),
+                )
+            },
         )
 
         Box(
@@ -71,7 +78,6 @@ fun MahjongScreen(
                 state = state,
                 onTileTap = viewModel::onTileTap,
             )
-
             if (state.completed) {
                 WinOverlay(
                     timeLabel = formatTime(state.elapsedMs),
@@ -83,7 +89,6 @@ fun MahjongScreen(
             }
         }
 
-        // Bottom action bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,7 +104,11 @@ fun MahjongScreen(
 }
 
 @Composable
-private fun ActionButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun ActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+) {
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
     Column(
@@ -116,49 +125,44 @@ private fun ActionButton(label: String, icon: androidx.compose.ui.graphics.vecto
 }
 
 @Composable
-private fun MahjongBoard(
-    state: MahjongUiState,
-    onTileTap: (Int) -> Unit,
-) {
-    val theme = LocalAppTheme.current
-    val activeTiles = state.tiles.filter { !it.removed }
-    if (activeTiles.isEmpty()) return
+private fun MahjongBoard(state: MahjongUiState, onTileTap: (Int) -> Unit) {
+    val active = state.tiles.filter { !it.removed }
+    if (active.isEmpty()) return
 
-    // Determinar tamanho da peça baseado nas dimensões disponíveis (placeholder simples)
-    val minCol = activeTiles.minOf { it.col }
-    val maxCol = activeTiles.maxOf { it.col }
-    val minRow = activeTiles.minOf { it.row }
-    val maxRow = activeTiles.maxOf { it.row }
-    val gridW = maxCol - minCol + 2
-    val gridH = maxRow - minRow + 2
+    val minCol = active.minOf { it.col }
+    val maxCol = active.maxOf { it.col }
+    val minRow = active.minOf { it.row }
+    val maxRow = active.maxOf { it.row }
+    val halfCol = (maxCol - minCol + 2)
+    val rowsSpan = (maxRow - minRow + 2)
 
-    // Tamanho em dp, fixo para MVP — cada half-cell ocupa 24.dp
-    val halfCell = 24.dp
+    // Tamanho fixo de tile para MVP
+    val tileW = 44.dp
+    val tileH = 58.dp
+    val tileDepth = 5.dp
+    val gridStepX = 22.dp   // half-cell horizontal
+    val gridStepY = 30.dp   // step vertical
+    val layerOffset = 4.dp  // deslocamento isométrico por camada
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(modifier = Modifier.size(width = (gridW * 24).dp, height = (gridH * 32).dp)) {
-            // Ordenar por camada para empilhamento visual
-            activeTiles.sortedWith(compareBy({ it.layer }, { it.row }, { it.col })).forEach { tile ->
-                val x = ((tile.col - minCol).toFloat() * 24f - tile.layer * 3f).dp
-                val y = ((tile.row - minRow).toFloat() * 32f - tile.layer * 3f).dp
-                val isFree = activeTiles.let { all ->
-                    val above = all.any { t ->
-                        t.layer == tile.layer + 1 && kotlin.math.abs(t.row - tile.row) <= 1 && kotlin.math.abs(t.col - tile.col) <= 1
-                    }
-                    if (above) false else {
-                        val same = all.filter { it.layer == tile.layer && it.id != tile.id }
-                        val left = same.any { it.row == tile.row && it.col == tile.col - 2 }
-                        val right = same.any { it.row == tile.row && it.col == tile.col + 2 }
-                        !(left && right)
-                    }
-                }
+        Box {
+            // Ordenar por (layer, row, col) para empilhamento visual correto
+            active.sortedWith(compareBy({ it.layer }, { it.row }, { it.col })).forEach { tile ->
+                val isFree = computeIsFree(tile, active)
                 val selected = state.selectedId == tile.id
                 val hinted = state.hintPair?.let { it.first == tile.id || it.second == tile.id } == true
 
+                val visualState = when {
+                    selected -> TileVisualState.SELECTED
+                    hinted -> TileVisualState.HINTED
+                    !isFree -> TileVisualState.BLOCKED
+                    else -> TileVisualState.FREE
+                }
+
                 val scale by animateFloatAsState(
-                    targetValue = when {
-                        selected -> 1.08f
-                        hinted -> 1.05f
+                    targetValue = when (visualState) {
+                        TileVisualState.SELECTED -> 1.08f
+                        TileVisualState.HINTED -> 1.04f
                         else -> 1f
                     },
                     animationSpec = spring(
@@ -168,38 +172,39 @@ private fun MahjongBoard(
                     label = "tile-scale",
                 )
 
+                val x = ((tile.col - minCol).toFloat() * gridStepX.value - tile.layer * layerOffset.value).dp
+                val y = ((tile.row - minRow).toFloat() * gridStepY.value - tile.layer * layerOffset.value).dp
+
                 Box(
                     modifier = Modifier
                         .offset(x, y)
-                        .size(width = 48.dp, height = 64.dp)
-                        .graphicsLayer {
-                            scaleX = scale; scaleY = scale
-                        }
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            when {
-                                selected -> Color(0xFFFFE489)
-                                !isFree -> Color(0xFFE8DCC0)
-                                else -> Color(0xFFF4ECD6)
-                            }
-                        )
-                        .border(
-                            width = if (hinted) 2.dp else 1.dp,
-                            color = if (hinted) theme.color.accentGold else Color(0xFF2C2A26),
-                            shape = RoundedCornerShape(4.dp),
-                        )
+                        .graphicsLayer { scaleX = scale; scaleY = scale }
                         .clickable(enabled = isFree) { onTileTap(tile.id) },
-                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        tile.face.displayChar,
-                        color = Color(0xFF2C2A26),
-                        fontSize = 14.sp,
+                    MahjongTileVisual(
+                        face = tile.face,
+                        state = visualState,
+                        width = tileW,
+                        height = tileH,
+                        depth = tileDepth,
                     )
                 }
             }
         }
     }
+}
+
+private fun computeIsFree(tile: MahjongTile, all: List<MahjongTile>): Boolean {
+    val above = all.any { t ->
+        t.layer == tile.layer + 1 &&
+            kotlin.math.abs(t.row - tile.row) <= 1 &&
+            kotlin.math.abs(t.col - tile.col) <= 1
+    }
+    if (above) return false
+    val same = all.filter { it.layer == tile.layer && it.id != tile.id }
+    val left = same.any { it.row == tile.row && it.col == tile.col - 2 }
+    val right = same.any { it.row == tile.row && it.col == tile.col + 2 }
+    return !(left && right)
 }
 
 private fun formatTime(ms: Long): String {

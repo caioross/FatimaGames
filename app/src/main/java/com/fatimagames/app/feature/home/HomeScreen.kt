@@ -3,7 +3,6 @@ package com.fatimagames.app.feature.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +37,10 @@ fun HomeScreen(
     onGameMahjong: () -> Unit,
     onGameMatch3: () -> Unit,
     onGameColorSort: () -> Unit,
+    onGameSolitaire: () -> Unit,
+    onGameMinesweeper: () -> Unit,
+    onGameTetris: () -> Unit,
+    onGameFrogger: () -> Unit,
     onStatsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -50,6 +53,10 @@ fun HomeScreen(
         onGameMahjong = onGameMahjong,
         onGameMatch3 = onGameMatch3,
         onGameColorSort = onGameColorSort,
+        onGameSolitaire = onGameSolitaire,
+        onGameMinesweeper = onGameMinesweeper,
+        onGameTetris = onGameTetris,
+        onGameFrogger = onGameFrogger,
         onStatsClick = onStatsClick,
         onSettingsClick = onSettingsClick,
         onContinueClick = {
@@ -58,6 +65,10 @@ fun HomeScreen(
                 GameType.MAHJONG -> onGameMahjong()
                 GameType.MATCH3 -> onGameMatch3()
                 GameType.COLOR_SORT -> onGameColorSort()
+                GameType.SOLITAIRE -> onGameSolitaire()
+                GameType.MINESWEEPER -> onGameMinesweeper()
+                GameType.TETRIS -> onGameTetris()
+                GameType.FROGGER -> onGameFrogger()
                 null -> {}
             }
         },
@@ -72,6 +83,10 @@ private fun HomeContent(
     onGameMahjong: () -> Unit,
     onGameMatch3: () -> Unit,
     onGameColorSort: () -> Unit,
+    onGameSolitaire: () -> Unit,
+    onGameMinesweeper: () -> Unit,
+    onGameTetris: () -> Unit,
+    onGameFrogger: () -> Unit,
     onStatsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onContinueClick: () -> Unit,
@@ -139,6 +154,38 @@ private fun HomeContent(
                         subtitle = "Tubos coloridos",
                         onClick = onGameColorSort,
                         illustration = { Illustration(R.drawable.illust_colorsort) },
+                    )
+                }
+                item {
+                    GameCard(
+                        title = "Paciência",
+                        subtitle = "Klondike clássico",
+                        onClick = onGameSolitaire,
+                        illustration = { Illustration(R.drawable.illust_solitaire) },
+                    )
+                }
+                item {
+                    GameCard(
+                        title = "Campo Minado",
+                        subtitle = "Encontre as bombas",
+                        onClick = onGameMinesweeper,
+                        illustration = { Illustration(R.drawable.illust_minesweeper) },
+                    )
+                }
+                item {
+                    GameCard(
+                        title = "Tetris",
+                        subtitle = "Empilhe as peças",
+                        onClick = onGameTetris,
+                        illustration = { Illustration(R.drawable.illust_tetris) },
+                    )
+                }
+                item {
+                    GameCard(
+                        title = "Sapo aventureiro",
+                        subtitle = "Atravesse a rua",
+                        onClick = onGameFrogger,
+                        illustration = { Illustration(R.drawable.illust_frogger) },
                     )
                 }
             }

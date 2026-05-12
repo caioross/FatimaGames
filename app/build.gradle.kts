@@ -47,6 +47,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -93,6 +94,9 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
+
+    // EXIF (rotação correta de fotos do celular)
+    implementation(libs.androidx.exifinterface)
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)

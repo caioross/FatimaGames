@@ -57,7 +57,7 @@ class ColorSortEngine(initial: List<Tube>) {
         val fromTube = tubes[last.from]
         tubes[last.to] = toTube.copy(units = toTube.units.subList(0, toTube.units.size - last.units.size).toList())
         tubes[last.from] = fromTube.copy(units = fromTube.units + last.units)
-        movesMade++
+        // Não incrementa movesMade no undo (corrigido)
         return true
     }
 

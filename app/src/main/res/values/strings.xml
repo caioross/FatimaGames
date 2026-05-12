@@ -14,6 +14,14 @@
     <string name="game_match3_sub">3 iguais ou mais</string>
     <string name="game_colorsort">Organizar cores</string>
     <string name="game_colorsort_sub">Tubos coloridos</string>
+    <string name="game_solitaire">Paciência</string>
+    <string name="game_solitaire_sub">Klondike clássico</string>
+    <string name="game_minesweeper">Campo Minado</string>
+    <string name="game_minesweeper_sub">Encontre as bombas</string>
+    <string name="game_tetris">Tetris</string>
+    <string name="game_tetris_sub">Empilhe as peças</string>
+    <string name="game_frogger">Sapo aventureiro</string>
+    <string name="game_frogger_sub">Atravesse a rua</string>
 
     <!-- Common -->
     <string name="action_back">Voltar</string>

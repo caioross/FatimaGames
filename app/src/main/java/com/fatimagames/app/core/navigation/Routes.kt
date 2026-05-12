@@ -13,3 +13,8 @@ import kotlinx.serialization.Serializable
 @Serializable object MahjongGameRoute
 @Serializable object Match3GameRoute
 @Serializable data class ColorSortGameRoute(val stage: Int = 1)
+
+@Serializable object SolitaireRoute
+@Serializable object MinesweeperRoute
+@Serializable object TetrisRoute
+@Serializable object FroggerRoute
