@@ -12,3 +12,9 @@ local.properties
 /app/release
 *.keystore
 *.jks
+
+# Ferramentas internas
+.claude/
+
+# Site de apresentacao = repositorio separado
+/site/
