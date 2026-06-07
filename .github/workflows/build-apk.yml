@@ -7,6 +7,10 @@ on:
   release:
     types: [created]
 
+# Necessário para o workflow criar/atualizar a Release com o APK.
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build debug APK
@@ -54,8 +58,6 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Attach APK to release (if release event)
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: app/build/outputs/apk/debug/app-debug.apk
+      # Renomeia para um nome amigável usado no link de download do site.
+      - name: Prepare APK for release
+    
