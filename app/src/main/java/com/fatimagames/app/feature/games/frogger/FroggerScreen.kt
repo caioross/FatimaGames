@@ -1,14 +1,19 @@
 package com.fatimagames.app.feature.games.frogger
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,11 +37,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fatimagames.app.core.theme.LocalAppTheme
 import com.fatimagames.app.core.theme.LocalAppTypography
+import com.fatimagames.app.core.ui.GameBackGuard
 import com.fatimagames.app.core.ui.GameTopBar
+import com.fatimagames.app.core.ui.TutorialContent
+import com.fatimagames.app.core.ui.TutorialFirstTime
 import com.fatimagames.app.feature.games.frogger.domain.COLS
 import com.fatimagames.app.feature.games.frogger.domain.FrogStatus
 import com.fatimagames.app.feature.games.frogger.domain.LaneType
@@ -52,18 +61,35 @@ fun FroggerScreen(
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
 
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    // FIX F03: pausa game loop quando app vai pro background
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onLifecyclePause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onLifecycleResume() }
+
+    val hasProgress = state.score > 0 && state.status == FrogStatus.ALIVE
+    GameBackGuard(hasProgress = hasProgress, onConfirmedExit = onBack) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         GameTopBar(
             title = "Sapo aventureiro",
-            subtitle = "${state.lives} vidas · ${state.goalsReached}/5 travessias",
+            subtitle = "${state.goalsReached}/5 travessias",
             onBackClick = onBack,
             rightContent = {
-                Text(
-                    "%,d".format(state.score),
-                    color = theme.color.textPrimary,
-                    style = typo.numericLg,
-                    modifier = Modifier.padding(end = theme.spacing.md),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // FIX V806: 3 corações visíveis em vez de "3 vidas" texto
+                    repeat(3) { i ->
+                        Text(
+                            if (i < state.lives) "♥" else "♡",
+                            color = if (i < state.lives) Color(0xFFE24B4A) else theme.color.textDisabled,
+                            modifier = Modifier.padding(horizontal = 1.dp),
+                        )
+                    }
+                    Spacer(Modifier.size(theme.spacing.sm))
+                    Text(
+                        "%,d".format(state.score),
+                        color = theme.color.textPrimary,
+                        style = typo.numericMd,
+                        modifier = Modifier.padding(end = theme.spacing.md),
+                    )
+                }
             },
         )
 
@@ -97,7 +123,7 @@ fun FroggerScreen(
                 Spacer(Modifier.height(4.dp))
                 Row {
                     DPadButton(Icons.Outlined.KeyboardArrowLeft, viewModel::moveLeft)
-                    Spacer(Modifier.size(72.dp))
+                    Spacer(Modifier.size(56.dp))
                     DPadButton(Icons.Outlined.KeyboardArrowRight, viewModel::moveRight)
                 }
                 Spacer(Modifier.height(4.dp))
@@ -105,6 +131,8 @@ fun FroggerScreen(
             }
         }
         Spacer(Modifier.height(theme.spacing.md))
+    }
+    TutorialFirstTime(name = "frogger", steps = TutorialContent.frogger)
     }
 }
 
@@ -116,13 +144,13 @@ private fun DPadButton(
     val theme = LocalAppTheme.current
     Box(
         modifier = Modifier
-            .size(72.dp)
+            .size(56.dp)
             .clip(CircleShape)
             .background(theme.color.primary.copy(alpha = 0.85f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = theme.color.textInverse, modifier = Modifier.size(36.dp))
+        Icon(icon, contentDescription = null, tint = theme.color.textInverse, modifier = Modifier.size(28.dp))
     }
 }
 
@@ -184,17 +212,37 @@ private fun FroggerCanvas(state: FroggerUiState) {
             }
         }
 
-        // Sapo
-        val fx = state.frog.col * cellW + cellW / 2f
+        // FIX V801: goal pads (5 lily pads na row 0)
+        val padW = cellW * (COLS.toFloat() / 5f) * 0.8f
+        for (i in 0 until 5) {
+            val px = (i + 0.5f) * (cellW * COLS.toFloat() / 5f)
+            val py = cellH * 0.5f
+            val filled = state.goalSlots.getOrNull(i) == true
+            drawOval(
+                color = if (filled) Color(0xFF1E6B3C) else Color(0xFF4F6A53).copy(alpha = 0.4f),
+                topLeft = Offset(px - padW / 2f, py - cellH * 0.35f),
+                size = androidx.compose.ui.geometry.Size(padW, cellH * 0.7f),
+            )
+            if (filled) {
+                drawCircle(Color(0xFFD4A24A), radius = cellH * 0.15f, center = Offset(px, py))
+            }
+        }
+
+        // Sapo com rotação visual baseada na última direção (FIX V802)
+        val fx = state.frog.colFloat * cellW + cellW / 2f
         val fy = state.frog.row * cellH + cellH / 2f
         val r = minOf(cellW, cellH) * 0.36f
-        drawCircle(Color(0xFF1E6B3C), radius = r, center = Offset(fx, fy))
-        drawCircle(Color(0xFF3E8C5B), radius = r * 0.7f, center = Offset(fx, fy))
-        // Olhinhos
-        drawCircle(Color.White, radius = r * 0.18f, center = Offset(fx - r * 0.35f, fy - r * 0.35f))
-        drawCircle(Color.White, radius = r * 0.18f, center = Offset(fx + r * 0.35f, fy - r * 0.35f))
-        drawCircle(Color.Black, radius = r * 0.08f, center = Offset(fx - r * 0.35f, fy - r * 0.35f))
-        drawCircle(Color.Black, radius = r * 0.08f, center = Offset(fx + r * 0.35f, fy - r * 0.35f))
+
+        // Rotaciona sob o centro do sapo
+        rotate(degrees = state.facingDeg, pivot = Offset(fx, fy)) {
+            drawCircle(Color(0xFF1E6B3C), radius = r, center = Offset(fx, fy))
+            drawCircle(Color(0xFF3E8C5B), radius = r * 0.7f, center = Offset(fx, fy))
+            // Olhinhos (sempre "para frente" considerando rotation)
+            drawCircle(Color.White, radius = r * 0.18f, center = Offset(fx - r * 0.35f, fy - r * 0.35f))
+            drawCircle(Color.White, radius = r * 0.18f, center = Offset(fx + r * 0.35f, fy - r * 0.35f))
+            drawCircle(Color.Black, radius = r * 0.08f, center = Offset(fx - r * 0.35f, fy - r * 0.35f))
+            drawCircle(Color.Black, radius = r * 0.08f, center = Offset(fx + r * 0.35f, fy - r * 0.35f))
+        }
     }
 }
 

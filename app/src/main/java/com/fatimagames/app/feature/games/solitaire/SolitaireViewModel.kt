@@ -9,7 +9,13 @@ import com.fatimagames.app.feature.games.solitaire.domain.Card
 import com.fatimagames.app.feature.games.solitaire.domain.Pile
 import com.fatimagames.app.feature.games.solitaire.domain.Selection
 import com.fatimagames.app.feature.games.solitaire.domain.SolitaireEngine
+import com.fatimagames.app.feature.games.solitaire.domain.SolitaireSnapshot
+import com.fatimagames.app.domain.repository.GameStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,15 +36,37 @@ data class SolitaireUiState(
 @HiltViewModel
 class SolitaireViewModel @Inject constructor(
     private val recordRepo: RecordRepository,
+    private val stateRepo: GameStateRepository,
 ) : ViewModel() {
 
     private var engine = SolitaireEngine()
     private var startTime = System.currentTimeMillis()
+    private val json = Json { ignoreUnknownKeys = true }
+    private var saveJob: Job? = null
 
     private val _uiState = MutableStateFlow(SolitaireUiState())
     val uiState: StateFlow<SolitaireUiState> = _uiState.asStateFlow()
 
-    init { publish() }
+    init {
+        viewModelScope.launch {
+            val raw = stateRepo.loadSnapshot(GameType.SOLITAIRE)
+            if (raw != null) {
+                runCatching {
+                    val snap = json.decodeFromString<SolitaireSnapshot>(raw)
+                    engine.loadFromSnapshot(snap)
+                }
+            }
+            publish()
+        }
+    }
+
+    private fun scheduleSave() {
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
+            delay(800)
+            stateRepo.saveSnapshot(GameType.SOLITAIRE, json.encodeToString(engine.toSnapshot()))
+        }
+    }
 
     fun onDrawClick() {
         engine.drawFromStock()
@@ -106,6 +134,7 @@ class SolitaireViewModel @Inject constructor(
         engine = SolitaireEngine()
         startTime = System.currentTimeMillis()
         clearSelection()
+        viewModelScope.launch { stateRepo.clearSnapshot(GameType.SOLITAIRE) }
         publish()
     }
 
@@ -115,6 +144,7 @@ class SolitaireViewModel @Inject constructor(
     private fun clearSelectionAndPublish() {
         _uiState.value = _uiState.value.copy(selection = null)
         publish()
+        scheduleSave()
     }
 
     private fun publish() {
@@ -141,6 +171,7 @@ class SolitaireViewModel @Inject constructor(
                     finishedAt = System.currentTimeMillis(),
                 )
             )
+            stateRepo.clearSnapshot(GameType.SOLITAIRE)
         }
     }
 }

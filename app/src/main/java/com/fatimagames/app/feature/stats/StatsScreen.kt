@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -70,7 +71,7 @@ fun StatsScreen(
     val state by viewModel.state.collectAsState()
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         SimpleTopBar(title = "Records", onBackClick = onBack)
         if (state.records.isEmpty()) {
             EmptyStats()

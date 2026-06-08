@@ -42,13 +42,13 @@ fun HomeTopBar(
         }
         CircleIconButton(
             icon = Icons.Outlined.EmojiEvents,
-            contentDescription = "Records",
+            contentDescription = "Ver seus records",
             onClick = onRecordsClick,
         )
         Spacer(Modifier.width(theme.spacing.xs))
         CircleIconButton(
             icon = Icons.Outlined.Settings,
-            contentDescription = "Configurações",
+            contentDescription = "Abrir configurações",
             onClick = onSettingsClick,
         )
     }

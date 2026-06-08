@@ -3,6 +3,7 @@ package com.fatimagames.app.feature.photolibrary
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.runtime.Composable
@@ -17,7 +18,7 @@ fun PhotoLibraryScreen(
     onPhotoSelected: (photoId: Long) -> Unit,
 ) {
     val theme = LocalAppTheme.current
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         SimpleTopBar(title = "Minhas fotos", onBackClick = onBack)
         EmptyState(
             title = "Sem fotos por aqui",

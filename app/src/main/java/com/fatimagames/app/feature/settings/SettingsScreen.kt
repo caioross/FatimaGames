@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -67,7 +68,7 @@ fun SettingsScreen(
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
 
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         SimpleTopBar(title = "Configurações", onBackClick = onBack)
 
         Column(modifier = Modifier.padding(theme.spacing.md)) {
@@ -107,6 +108,28 @@ fun SettingsScreen(
             ToggleRow("Sons", state.soundsEnabled) { viewModel.setSounds(it) }
             ToggleRow("Vibração", state.hapticsEnabled) { viewModel.setHaptics(it) }
             ToggleRow("Reduzir animações", state.reduceMotion) { viewModel.setReduceMotion(it) }
+
+            Spacer(Modifier.height(theme.spacing.lg))
+            SectionTitle("Sobre")
+            Column(modifier = Modifier.padding(horizontal = theme.spacing.md, vertical = theme.spacing.sm)) {
+                Text(
+                    "Fatima Games",
+                    color = theme.color.textPrimary,
+                    style = typo.titleSm,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Versão 1.0.0 · 8 jogos clássicos",
+                    color = theme.color.textSecondary,
+                    style = typo.labelMd,
+                )
+                Spacer(Modifier.height(theme.spacing.xs))
+                Text(
+                    "Feito com carinho. Sem anúncios, sem coleta de dados. Funciona 100% offline.",
+                    color = theme.color.textSecondary,
+                    style = typo.bodyMd,
+                )
+            }
         }
     }
 }

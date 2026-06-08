@@ -1,6 +1,16 @@
 package com.fatimagames.app.feature.games.colorsort.domain
 
+import kotlinx.serialization.Serializable
+
 enum class LiquidColor { RED, BLUE, GREEN, YELLOW, ORANGE, PURPLE, PINK, CYAN }
+
+@Serializable
+data class ColorSortSnapshot(
+    val tubes: List<List<String>>,  // cores serializadas como nome
+    val capacity: Int,
+    val movesMade: Int,
+    val stage: Int,
+)
 
 data class Tube(val units: List<LiquidColor>, val capacity: Int = 4) {
     val isEmpty: Boolean get() = units.isEmpty()
@@ -66,6 +76,22 @@ class ColorSortEngine(initial: List<Tube>) {
     }
 
     fun isWin(): Boolean = tubes.all { it.isSorted }
+
+    fun toSnapshot(stage: Int): ColorSortSnapshot = ColorSortSnapshot(
+        tubes = tubes.map { tube -> tube.units.map { it.name } },
+        capacity = tubes.firstOrNull()?.capacity ?: 4,
+        movesMade = movesMade,
+        stage = stage,
+    )
+
+    fun loadFromSnapshot(snap: ColorSortSnapshot) {
+        tubes.clear()
+        for (tubeData in snap.tubes) {
+            val units = tubeData.mapNotNull { runCatching { LiquidColor.valueOf(it) }.getOrNull() }
+            tubes.add(Tube(units = units, capacity = snap.capacity))
+        }
+        movesMade = snap.movesMade
+    }
 }
 
 // ColorSortStages foi movido para ColorSortStages.kt

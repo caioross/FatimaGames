@@ -21,6 +21,7 @@ data class PieceState(
     val xPx: Float,
     val yPx: Float,
     val groupId: Int,
+    val rotationDeg: Float = 0f,
 )
 
 data class JigsawBoard(

@@ -60,4 +60,29 @@ jobs:
 
       # Renomeia para um nome amigável usado no link de download do site.
       - name: Prepare APK for release
-    
+        if: github.ref == 'refs/heads/main'
+        run: cp app/build/outputs/apk/debug/app-debug.apk FatimaGames.apk
+
+      # Publica/atualiza a release "latest" com o APK mais recente.
+      # Cria a URL pública estável:
+      #   https://github.com/caioross/FatimaGames/releases/latest/download/FatimaGames.apk
+      - name: Publish APK to "latest" release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: FatimaGames — última versão (APK)
+          body: |
+            APK mais recente do FatimaGames, gerado automaticamente a cada atualização.
+
+            Baixe **FatimaGames.apk** abaixo, transfira para o celular e instale
+            (pode ser necessário autorizar "Fontes desconhecidas").
+          make_latest: true
+          files: FatimaGames.apk
+
+      # Mantém o comportamento antigo: se você criar uma release manual, anexa o APK também.
+      - name: Attach APK to manual release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/app-debug.apk

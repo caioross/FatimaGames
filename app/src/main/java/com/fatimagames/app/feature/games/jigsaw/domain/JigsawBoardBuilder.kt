@@ -52,15 +52,30 @@ object JigsawBoardBuilder {
             )
         }
 
-        // Distribui peças soltas aleatoriamente nas margens
+        // Distribui peças num jittered grid pra evitar sobreposição grosseira
         val rng = Random(seed)
-        val states = pieces.map { def ->
-            val xRange = 0..(viewportWidthPx - cellSize - 2 * knobInset)
-            val yRange = (maxBoardH + knobInset)..(viewportHeightPx - cellSize - 2 * knobInset).coerceAtLeast(maxBoardH + knobInset + 1)
+        val pieceFootprint = cellSize + 2 * knobInset
+        val scatterAreaTop = maxBoardH + knobInset
+        val scatterAreaBottom = (viewportHeightPx - pieceFootprint).coerceAtLeast(scatterAreaTop + 1)
+        val scatterHeight = (scatterAreaBottom - scatterAreaTop).coerceAtLeast(pieceFootprint)
+        // Calcula colunas/linhas do grid de scatter para caber todas as peças sem overlap
+        val gridCols = (viewportWidthPx / (pieceFootprint * 0.85f)).toInt().coerceAtLeast(1)
+        val gridRows = (pieces.size + gridCols - 1) / gridCols
+        val cellW = viewportWidthPx.toFloat() / gridCols
+        val cellH = scatterHeight.toFloat() / gridRows
+        val shuffledPieces = pieces.shuffled(rng)
+        val states = shuffledPieces.mapIndexed { i, def ->
+            val gridR = i / gridCols
+            val gridC = i % gridCols
+            val baseX = gridC * cellW
+            val baseY = scatterAreaTop + gridR * cellH
+            // Jitter pequeno pra não parecer alinhado demais
+            val jitterX = (rng.nextFloat() - 0.5f) * (cellW - pieceFootprint).coerceAtLeast(0f) * 0.7f
+            val jitterY = (rng.nextFloat() - 0.5f) * (cellH - pieceFootprint).coerceAtLeast(0f) * 0.7f
             PieceState(
                 pieceId = def.id,
-                xPx = rng.nextInt(xRange.first, (xRange.last + 1).coerceAtLeast(xRange.first + 1)).toFloat(),
-                yPx = rng.nextInt(yRange.first, (yRange.last + 1).coerceAtLeast(yRange.first + 1)).toFloat(),
+                xPx = (baseX + jitterX).coerceIn(0f, (viewportWidthPx - pieceFootprint).toFloat()),
+                yPx = (baseY + jitterY).coerceIn(scatterAreaTop.toFloat(), (viewportHeightPx - pieceFootprint).toFloat()),
                 groupId = def.id,
             )
         }

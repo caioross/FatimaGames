@@ -10,6 +10,7 @@ import com.fatimagames.app.feature.games.mahjong.domain.MahjongEngine
 import com.fatimagames.app.feature.games.mahjong.domain.MahjongLayoutBuilder
 import com.fatimagames.app.feature.games.mahjong.domain.MahjongSnapshot
 import com.fatimagames.app.feature.games.mahjong.domain.MahjongTile
+import com.fatimagames.app.core.feedback.HapticController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,6 +36,7 @@ data class MahjongUiState(
 class MahjongViewModel @Inject constructor(
     private val recordRepo: RecordRepository,
     private val stateRepo: GameStateRepository,
+    private val haptic: HapticController,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MahjongUiState())
@@ -81,11 +83,16 @@ class MahjongViewModel @Inject constructor(
         }
         val ok = engine.tryMatch(selected, id)
         if (ok) {
+            haptic.snap()
             _uiState.value = _uiState.value.copy(selectedId = null)
             publish()
             scheduleSave()
-            if (engine.isComplete()) finishGame()
+            if (engine.isComplete()) {
+                haptic.win()
+                finishGame()
+            }
         } else {
+            haptic.error()
             _uiState.value = _uiState.value.copy(selectedId = id)
         }
     }

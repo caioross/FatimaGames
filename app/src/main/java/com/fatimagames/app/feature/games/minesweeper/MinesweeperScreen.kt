@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +37,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fatimagames.app.core.theme.LocalAppTheme
 import com.fatimagames.app.core.theme.LocalAppTypography
+import com.fatimagames.app.core.ui.GameBackGuard
 import com.fatimagames.app.core.ui.GameTopBar
+import com.fatimagames.app.core.ui.TutorialContent
+import com.fatimagames.app.core.ui.TutorialFirstTime
 import com.fatimagames.app.core.ui.WinOverlay
 import com.fatimagames.app.feature.games.minesweeper.domain.Cell
 import com.fatimagames.app.feature.games.minesweeper.domain.Difficulty
@@ -63,7 +67,10 @@ fun MinesweeperScreen(
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
 
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    val hasProgress = state.grid.any { row -> row.any { it.isRevealed || it.isFlagged } } &&
+        state.status is com.fatimagames.app.feature.games.minesweeper.domain.GameStatus.Playing
+    GameBackGuard(hasProgress = hasProgress, onConfirmedExit = onBack) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         GameTopBar(
             title = "Campo Minado",
             subtitle = "${state.difficulty.label} · ${state.flagsRemaining}🚩",
@@ -181,6 +188,8 @@ fun MinesweeperScreen(
                 onClick = viewModel::onRestart,
             )
         }
+    }
+    TutorialFirstTime(name = "minesweeper", steps = TutorialContent.minesweeper)
     }
 }
 

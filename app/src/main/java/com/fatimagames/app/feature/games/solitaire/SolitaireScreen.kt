@@ -4,10 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -29,7 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.fatimagames.app.core.theme.LocalAppTheme
 import com.fatimagames.app.core.theme.LocalAppTypography
+import com.fatimagames.app.core.ui.GameBackGuard
 import com.fatimagames.app.core.ui.GameTopBar
+import com.fatimagames.app.core.ui.TutorialContent
+import com.fatimagames.app.core.ui.TutorialFirstTime
 import com.fatimagames.app.core.ui.WinOverlay
 import com.fatimagames.app.feature.games.solitaire.domain.Pile
 import com.fatimagames.app.feature.games.solitaire.domain.Selection
@@ -45,7 +50,9 @@ fun SolitaireScreen(
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
 
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    val hasProgress = state.moves > 0 && !state.completed
+    GameBackGuard(hasProgress = hasProgress, onConfirmedExit = onBack) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         GameTopBar(
             title = "Paciência",
             subtitle = "${state.moves} jogadas",
@@ -88,6 +95,8 @@ fun SolitaireScreen(
                 )
             }
         }
+    }
+    TutorialFirstTime(name = "solitaire", steps = TutorialContent.solitaire)
     }
 }
 
@@ -149,18 +158,26 @@ private fun TopRow(state: SolitaireUiState, vm: SolitaireViewModel) {
 @Composable
 private fun TableauRow(state: SolitaireUiState, vm: SolitaireViewModel) {
     val theme = LocalAppTheme.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        state.tableau.forEachIndexed { col, pile ->
-            TableauColumn(
-                col = col,
-                cards = pile,
-                selection = state.selection,
-                onEmpty = { vm.onEmptyTableauTap(col) },
-                onCard = { idx -> vm.onTableauCardTap(col, idx) },
-            )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // FIX V502: cardW responsivo (7 colunas + 6 gaps de 4dp)
+        val totalGap = 6 * 4
+        val cardW = ((maxWidth.value - totalGap) / 7f).coerceIn(36f, 60f).dp
+        val cardH = cardW * 1.42f
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            state.tableau.forEachIndexed { col, pile ->
+                TableauColumn(
+                    col = col,
+                    cards = pile,
+                    selection = state.selection,
+                    cardW = cardW,
+                    cardH = cardH,
+                    onEmpty = { vm.onEmptyTableauTap(col) },
+                    onCard = { idx -> vm.onTableauCardTap(col, idx) },
+                )
+            }
         }
     }
 }
@@ -170,12 +187,12 @@ private fun TableauColumn(
     col: Int,
     cards: List<com.fatimagames.app.feature.games.solitaire.domain.Card>,
     selection: Selection?,
+    cardW: androidx.compose.ui.unit.Dp = 46.dp,
+    cardH: androidx.compose.ui.unit.Dp = 66.dp,
     onEmpty: () -> Unit,
     onCard: (Int) -> Unit,
 ) {
-    val cardW = 46.dp
-    val cardH = 66.dp
-    val verticalGap = 18.dp
+    val verticalGap = (cardH.value * 0.30f).dp
     val selectedFromIndex = (selection?.pile as? Pile.Tableau)
         ?.takeIf { it.index == col }
         ?.let { selection.fromIndex }

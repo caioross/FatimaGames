@@ -122,4 +122,24 @@ object TutorialContent {
         TutorialStep("Como mover", "Toque num tubo (ele sobe), depois no destino. A cor do topo passa se o destino tiver mesma cor ou estiver vazio."),
         TutorialStep("Ajudas", "Pode desfazer quantas vezes quiser ou pedir um tubo extra."),
     )
+    val solitaire = listOf(
+        TutorialStep("Paciência clássica", "Mova todas as cartas para as 4 pilhas de cima (foundations), em ordem do Ás ao Rei, por naipe."),
+        TutorialStep("Como mover", "Toque numa carta para selecionar. Toque na pilha de destino. No tableau, alterna cores e desce em ordem (Rei até Ás)."),
+        TutorialStep("Stock", "Toque na pilha do canto para virar a próxima carta. Quando acabar, toque de novo para reciclar."),
+    )
+    val minesweeper = listOf(
+        TutorialStep("Encontre as minas", "Toque numa célula para revelar. Números indicam quantas minas estão ao redor."),
+        TutorialStep("Marcar bandeira", "Mantenha pressionado para colocar uma bandeira numa suspeita. Ou use o botão 'Modo bandeira'."),
+        TutorialStep("A primeira é segura", "Sua primeira jogada nunca cai numa mina — você pode começar tranquila."),
+    )
+    val tetris = listOf(
+        TutorialStep("Empilhe peças", "As peças caem do topo. Complete uma linha inteira para limpá-la e ganhar pontos."),
+        TutorialStep("Controles", "Use os botões abaixo: ←→ move, girar gira, descer acelera, ▼ derruba até o chão."),
+        TutorialStep("Atalhos", "Toque na tela = girar. Arraste para mover. Duplo toque = derrubar imediatamente."),
+    )
+    val frogger = listOf(
+        TutorialStep("Atravesse com cuidado", "Use o D-pad para mover o sapo. Cuidado com os carros!"),
+        TutorialStep("Rio", "Pra atravessar o rio, pule em cima dos troncos. Cair na água = perde uma vida."),
+        TutorialStep("Objetivo", "Complete 5 travessias até o topo para vencer. Você tem 3 vidas."),
+    )
 }

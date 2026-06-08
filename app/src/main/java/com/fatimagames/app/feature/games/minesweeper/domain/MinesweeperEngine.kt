@@ -1,6 +1,18 @@
 package com.fatimagames.app.feature.games.minesweeper.domain
 
 import kotlin.random.Random
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class CellSnap(val mine: Boolean, val revealed: Boolean, val flagged: Boolean, val adj: Int)
+
+@Serializable
+data class MinesweeperSnapshot(
+    val difficulty: String,
+    val grid: List<List<CellSnap>>,
+    val flagsUsed: Int,
+    val minesPlaced: Boolean,
+)
 
 data class Cell(
     val isMine: Boolean = false,
@@ -37,6 +49,22 @@ class MinesweeperEngine(val difficulty: Difficulty, val seed: Long = System.curr
     val flagsRemaining: Int get() = totalMines - flagsUsed
 
     fun snapshot(): List<List<Cell>> = grid.map { it.toList() }
+
+    fun toSnapshot(): MinesweeperSnapshot = MinesweeperSnapshot(
+        difficulty = difficulty.name,
+        grid = grid.map { row -> row.map { CellSnap(it.isMine, it.isRevealed, it.isFlagged, it.adjacentMines) } },
+        flagsUsed = flagsUsed,
+        minesPlaced = minesPlaced,
+    )
+
+    fun loadFromSnapshot(snap: MinesweeperSnapshot) {
+        for (r in 0 until rows) for (c in 0 until cols) {
+            val sc = snap.grid.getOrNull(r)?.getOrNull(c) ?: continue
+            grid[r][c] = Cell(sc.mine, sc.revealed, sc.flagged, sc.adj)
+        }
+        flagsUsed = snap.flagsUsed
+        minesPlaced = snap.minesPlaced
+    }
 
     fun tap(r: Int, c: Int): Boolean {
         if (status !is GameStatus.Playing) return false

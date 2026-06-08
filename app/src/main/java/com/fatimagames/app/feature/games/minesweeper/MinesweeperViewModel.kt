@@ -9,7 +9,13 @@ import com.fatimagames.app.feature.games.minesweeper.domain.Cell
 import com.fatimagames.app.feature.games.minesweeper.domain.Difficulty
 import com.fatimagames.app.feature.games.minesweeper.domain.GameStatus
 import com.fatimagames.app.feature.games.minesweeper.domain.MinesweeperEngine
+import com.fatimagames.app.feature.games.minesweeper.domain.MinesweeperSnapshot
+import com.fatimagames.app.domain.repository.GameStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,20 +36,45 @@ data class MinesweeperUiState(
 @HiltViewModel
 class MinesweeperViewModel @Inject constructor(
     private val recordRepo: RecordRepository,
+    private val stateRepo: GameStateRepository,
 ) : ViewModel() {
 
     private var engine = MinesweeperEngine(Difficulty.EASY)
     private var startTime = System.currentTimeMillis()
+    private val json = Json { ignoreUnknownKeys = true }
+    private var saveJob: Job? = null
 
     private val _uiState = MutableStateFlow(MinesweeperUiState())
     val uiState: StateFlow<MinesweeperUiState> = _uiState.asStateFlow()
 
-    init { publish() }
+    init {
+        viewModelScope.launch {
+            val raw = stateRepo.loadSnapshot(GameType.MINESWEEPER)
+            if (raw != null) {
+                runCatching {
+                    val snap = json.decodeFromString<MinesweeperSnapshot>(raw)
+                    val diff = runCatching { Difficulty.valueOf(snap.difficulty) }.getOrNull() ?: Difficulty.EASY
+                    engine = MinesweeperEngine(diff)
+                    engine.loadFromSnapshot(snap)
+                }
+            }
+            publish()
+        }
+    }
+
+    private fun scheduleSave() {
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
+            delay(800)
+            stateRepo.saveSnapshot(GameType.MINESWEEPER, json.encodeToString(engine.toSnapshot()))
+        }
+    }
 
     fun setDifficulty(d: Difficulty) {
         engine = MinesweeperEngine(d)
         startTime = System.currentTimeMillis()
         _uiState.value = MinesweeperUiState(difficulty = d)
+        viewModelScope.launch { stateRepo.clearSnapshot(GameType.MINESWEEPER) }
         publish()
     }
 
@@ -51,6 +82,7 @@ class MinesweeperViewModel @Inject constructor(
         engine = MinesweeperEngine(engine.difficulty)
         startTime = System.currentTimeMillis()
         _uiState.value = _uiState.value.copy(flagMode = false)
+        viewModelScope.launch { stateRepo.clearSnapshot(GameType.MINESWEEPER) }
         publish()
     }
 
@@ -62,6 +94,7 @@ class MinesweeperViewModel @Inject constructor(
         if (engine.status !is GameStatus.Playing) return
         if (_uiState.value.flagMode) engine.toggleFlag(r, c)
         else engine.tap(r, c)
+        scheduleSave()
         publish()
         if (engine.status is GameStatus.Won) finishGame()
     }
@@ -69,6 +102,7 @@ class MinesweeperViewModel @Inject constructor(
     fun onCellLongPress(r: Int, c: Int) {
         if (engine.status !is GameStatus.Playing) return
         engine.toggleFlag(r, c)
+        scheduleSave()
         publish()
     }
 
@@ -96,6 +130,7 @@ class MinesweeperViewModel @Inject constructor(
                     finishedAt = System.currentTimeMillis(),
                 )
             )
+            stateRepo.clearSnapshot(GameType.MINESWEEPER)
         }
     }
 }

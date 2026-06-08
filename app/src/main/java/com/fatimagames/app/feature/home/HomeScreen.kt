@@ -3,6 +3,8 @@ package com.fatimagames.app.feature.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -93,7 +95,7 @@ private fun HomeContent(
 ) {
     val theme = LocalAppTheme.current
     val typo = LocalAppTypography.current
-    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas)) {
+    Column(modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas).systemBarsPadding()) {
         HomeTopBar(
             greeting = greeting,
             onRecordsClick = onStatsClick,

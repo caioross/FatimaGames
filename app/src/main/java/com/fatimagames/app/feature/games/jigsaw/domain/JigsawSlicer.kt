@@ -3,12 +3,9 @@ package com.fatimagames.app.feature.games.jigsaw.domain
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.asAndroidPath
 import kotlin.math.abs
@@ -18,22 +15,32 @@ import kotlin.math.min
 import kotlin.random.Random
 
 /**
- * Slicer canônico do jigsaw.
+ * Slicer canônico do jigsaw — VERSÃO 2 com correções críticas.
  *
- * - Decide a grade (cols × rows) com células aproximadamente quadradas
- * - Atribui tipos de aresta (TAB/SLOT) garantindo encaixe entre vizinhas
- * - Constrói o Path da peça com curvas cubic Bézier formando o "knob"
- * - Recorta o bitmap para cada peça
+ * Inspirações: headbreaker (JS), shamim-akhtar (Unity), piecemaker (Python).
  *
- * Inspirado em:
- *  - headbreaker (JS) — modelo Tab/Slot
- *  - Shamim Akhtar Unity tutorial — matemática Bézier
- *  - piecemaker (Python) — proporções padrão
+ * Correções nesta versão:
+ *  1. Convenção de "outward" uniforme em todas as 4 arestas (era inversa em RIGHT/BOTTOM)
+ *  2. Variação aleatória da curva agora SHARED entre peças vizinhas (mesmo seed por aresta)
+ *  3. Knob extent ≤ knobInset (não excede o padding do bitmap, evita clipping)
+ *  4. 4 cubic Beziers compõem cada knob (entrada, subida, descida, saída) com lip clássico
  */
 object JigsawSlicer {
 
-    private const val KNOB_INSET_RATIO = 0.22f   // ~22% do cell size
-    private const val EDGE_VARIATION = 0.06f     // ±6% de variação no knob
+    /** Padding do bitmap como ratio do cellSize. É também o knob max extent. */
+    private const val KNOB_INSET_RATIO = 0.30f
+
+    /** Variação aleatória entre peças (±X% da curva). */
+    private const val EDGE_VARIATION = 0.04f
+
+    /** Coeficiente máximo do bulbo (≤ 1.0 para fit em knobInset com safety margin). */
+    private const val BULB_EXTENT = 0.95f
+
+    /** "Lip" — pequena inflexão pra dentro no início/fim do knob (negativo significa entrar). */
+    private const val LIP_DEPTH = 0.08f
+
+    fun knobInsetForCell(cellSize: Int): Int =
+        (cellSize * KNOB_INSET_RATIO).toInt().coerceAtLeast(10)
 
     fun chooseGrid(targetPieces: Int, imageAspect: Float): Pair<Int, Int> {
         var best: Pair<Int, Int>? = null
@@ -100,65 +107,72 @@ object JigsawSlicer {
     }
 
     /**
+     * Seed único por aresta horizontal (entre row r e r+1) na coluna c.
+     * Peças (r, c) e (r+1, c) compartilham essa aresta — ambas usam o mesmo seed.
+     */
+    private fun hEdgeSeed(boardSeed: Long, r: Int, c: Int): Long =
+        boardSeed xor (r * 1_000_000L + c * 7L + 0xA1B2C3L)
+
+    /**
+     * Seed único por aresta vertical (entre col c e c+1) na linha r.
+     * Peças (r, c) e (r, c+1) compartilham — ambas usam o mesmo seed.
+     */
+    private fun vEdgeSeed(boardSeed: Long, r: Int, c: Int): Long =
+        boardSeed xor (r * 1_000_000L + c * 7L + 0xD4E5F6L)
+
+    /**
      * Constrói o Path do contorno da peça em coordenadas locais do bitmap.
-     * Origem do bitmap é (0,0); o miolo da peça começa em (knobInset, knobInset).
+     * Origem (0,0) é canto superior-esquerdo do bitmap.
+     * O "miolo" (cell interior) começa em (knobInset, knobInset).
      */
     fun buildPiecePath(
         piece: PieceDefinition,
         cellSize: Float,
         knobInset: Float,
-        seedForVariation: Long,
+        boardSeed: Long,
     ): Path {
-        val rng = Random(seedForVariation xor (piece.gridRow * 73L + piece.gridCol * 13L))
         val path = Path()
-
         val left = knobInset
         val top = knobInset
         val right = knobInset + cellSize
         val bottom = knobInset + cellSize
 
-        // Começa no canto superior-esquerdo do miolo
+        // RNG por aresta (shared entre peças vizinhas)
+        val topRng = if (piece.gridRow == 0) Random(0L)
+            else Random(hEdgeSeed(boardSeed, piece.gridRow - 1, piece.gridCol))
+        val rightRng = Random(vEdgeSeed(boardSeed, piece.gridRow, piece.gridCol))
+        val bottomRng = Random(hEdgeSeed(boardSeed, piece.gridRow, piece.gridCol))
+        val leftRng = if (piece.gridCol == 0) Random(0L)
+            else Random(vEdgeSeed(boardSeed, piece.gridRow, piece.gridCol - 1))
+
         path.moveTo(left, top)
 
-        // TOP — esquerda-para-direita
+        // Convenção CORRETA: outward = -1 uniforme para TAB ir pra fora em todas as direções
+        // (em traversal clockwise no sistema de Y crescente para baixo)
+
         appendEdge(
             path,
-            from = Offset(left, top),
-            to = Offset(right, top),
-            type = piece.edges[Side.TOP]!!,
-            knobInset = knobInset,
-            outward = -1f,
-            rng = rng,
+            from = Offset(left, top), to = Offset(right, top),
+            type = piece.edges[Side.TOP]!!, knobInset = knobInset,
+            outward = -1f, rng = topRng,
         )
-        // RIGHT — cima-para-baixo
         appendEdge(
             path,
-            from = Offset(right, top),
-            to = Offset(right, bottom),
-            type = piece.edges[Side.RIGHT]!!,
-            knobInset = knobInset,
-            outward = 1f,
-            rng = rng,
+            from = Offset(right, top), to = Offset(right, bottom),
+            type = piece.edges[Side.RIGHT]!!, knobInset = knobInset,
+            outward = -1f, rng = rightRng,
         )
-        // BOTTOM — direita-para-esquerda
         appendEdge(
             path,
-            from = Offset(right, bottom),
-            to = Offset(left, bottom),
-            type = piece.edges[Side.BOTTOM]!!,
-            knobInset = knobInset,
-            outward = 1f,
-            rng = rng,
+            from = Offset(right, bottom), to = Offset(left, bottom),
+            type = piece.edges[Side.BOTTOM]!!, knobInset = knobInset,
+            outward = -1f, rng = bottomRng,
         )
-        // LEFT — baixo-para-cima
         appendEdge(
             path,
-            from = Offset(left, bottom),
-            to = Offset(left, top),
-            type = piece.edges[Side.LEFT]!!,
-            knobInset = knobInset,
-            outward = -1f,
-            rng = rng,
+            from = Offset(left, bottom), to = Offset(left, top),
+            type = piece.edges[Side.LEFT]!!, knobInset = knobInset,
+            outward = -1f, rng = leftRng,
         )
 
         path.close()
@@ -166,35 +180,36 @@ object JigsawSlicer {
     }
 
     /**
-     * Acrescenta a curva de uma aresta ao Path.
-     *
-     * Para TAB/SLOT, monta 3 cubic Béziers (entrada, topo, saída) usando o
-     * vetor normal à aresta para projetar o knob para fora ou para dentro.
+     * Acrescenta uma aresta ao path. FLAT é linha reta; TAB/SLOT é knob com 4 cubic Beziers.
      */
     private fun appendEdge(
         path: Path,
-        from: Offset,
-        to: Offset,
-        type: EdgeType,
-        knobInset: Float,
-        outward: Float,
-        rng: Random,
+        from: Offset, to: Offset,
+        type: EdgeType, knobInset: Float,
+        outward: Float, rng: Random,
     ) {
         if (type == EdgeType.FLAT) {
             path.lineTo(to.x, to.y)
             return
         }
+        // sign positivo → curva vai pra fora (TAB); negativo → pra dentro (SLOT)
         val sign = if (type == EdgeType.TAB) outward else -outward
+
         val dx = to.x - from.x
         val dy = to.y - from.y
         val len = hypot(dx, dy)
-        // Vetor normal (perpendicular) ao segmento, normalizado
+
+        // Normal perpendicular à aresta (consistente para todas as 4 direções)
         val nx = -dy / len
         val ny = dx / len
 
-        // Variação aleatória sutil no formato do knob
+        // Variações shared entre vizinhas
         val v1 = 1f + (rng.nextFloat() - 0.5f) * EDGE_VARIATION
         val v2 = 1f + (rng.nextFloat() - 0.5f) * EDGE_VARIATION
+
+        val k = knobInset
+        val bulb = k * BULB_EXTENT       // max distância do knob
+        val lip = k * LIP_DEPTH          // pequena inflexão pra dentro
 
         fun pt(t: Float, off: Float): Pair<Float, Float> {
             val px = from.x + dx * t + nx * off * sign
@@ -202,27 +217,36 @@ object JigsawSlicer {
             return px to py
         }
 
-        val k = knobInset
+        // Segmento 1: linha reta até o início do "lip"
+        // (entra com pequena inflexão pra dentro pra criar o pescoço característico)
         val (a1x, a1y) = pt(0.30f, 0f)
-        val (a2x, a2y) = pt(0.35f, k * 0.40f * v1)
-        val (a3x, a3y) = pt(0.40f, k * 0.80f * v1)
-
+        val (a2x, a2y) = pt(0.34f, -lip * v1)        // entra pra dentro
+        val (a3x, a3y) = pt(0.38f, bulb * 0.20f * v1)
         path.cubicTo(a1x, a1y, a2x, a2y, a3x, a3y)
 
-        val (b1x, b1y) = pt(0.45f, k * 1.15f * v2)
-        val (b2x, b2y) = pt(0.55f, k * 1.15f * v2)
-        val (b3x, b3y) = pt(0.60f, k * 0.80f * v2)
-
+        // Segmento 2: subida do lado esquerdo do bulbo
+        val (b1x, b1y) = pt(0.38f, bulb * 0.65f * v1)
+        val (b2x, b2y) = pt(0.42f, bulb * v2)
+        val (b3x, b3y) = pt(0.50f, bulb * v2)        // topo do bulbo (centro)
         path.cubicTo(b1x, b1y, b2x, b2y, b3x, b3y)
 
-        val (c1x, c1y) = pt(0.65f, k * 0.40f * v1)
-        val (c2x, c2y) = pt(0.70f, 0f)
-        path.cubicTo(c1x, c1y, c2x, c2y, to.x, to.y)
+        // Segmento 3: descida do lado direito do bulbo
+        val (c1x, c1y) = pt(0.58f, bulb * v2)
+        val (c2x, c2y) = pt(0.62f, bulb * v2)
+        val (c3x, c3y) = pt(0.62f, bulb * 0.65f * v1)
+        path.cubicTo(c1x, c1y, c2x, c2y, c3x, c3y)
+
+        // Segmento 4: saída (espelho do segmento 1)
+        val (d1x, d1y) = pt(0.62f, bulb * 0.20f * v1)
+        val (d2x, d2y) = pt(0.66f, -lip * v1)
+        val (d3x, d3y) = pt(0.70f, 0f)
+        path.cubicTo(d1x, d1y, d2x, d2y, d3x, d3y)
+
+        path.lineTo(to.x, to.y)
     }
 
     /**
      * Recorta uma peça do bitmap-fonte usando o path como máscara.
-     * O bitmap retornado tem dimensões (cellSize + 2*knobInset)².
      */
     fun renderPieceBitmap(
         sourceBitmap: Bitmap,
@@ -236,13 +260,13 @@ object JigsawSlicer {
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
 
-        // Build path in float coords
         val path = buildPiecePath(piece, cellSize.toFloat(), knobInset.toFloat(), seedForVariation)
         val androidPath = path.asAndroidPath()
 
-        // Clip & draw the source region
         canvas.save()
         canvas.clipPath(androidPath)
+
+        // Source region — incluindo o knobInset extra em volta da célula central
         val srcX = piece.gridCol * cellSize - knobInset
         val srcY = piece.gridRow * cellSize - knobInset
         val srcRect = Rect(
@@ -251,27 +275,26 @@ object JigsawSlicer {
             min(sourceBitmap.width, srcX + w),
             min(sourceBitmap.height, srcY + h),
         )
+        val dstLeft = if (srcX < 0) -srcX else 0
+        val dstTop = if (srcY < 0) -srcY else 0
         val dstRect = Rect(
-            if (srcX < 0) -srcX else 0,
-            if (srcY < 0) -srcY else 0,
-            if (srcX < 0) -srcX + srcRect.width() else srcRect.width(),
-            if (srcY < 0) -srcY + srcRect.height() else srcRect.height(),
+            dstLeft,
+            dstTop,
+            dstLeft + srcRect.width(),
+            dstTop + srcRect.height(),
         )
         canvas.drawBitmap(sourceBitmap, srcRect, dstRect, null)
         canvas.restore()
 
-        // Inner shadow / border outline
+        // Contorno suave (anti-aliased) — preto translúcido pra dar definição entre peças
         val stroke = Paint().apply {
             style = Paint.Style.STROKE
-            strokeWidth = 1.6f
-            color = 0x55000000.toInt()
+            strokeWidth = 1.5f
+            color = 0x66000000.toInt()
             isAntiAlias = true
         }
         canvas.drawPath(androidPath, stroke)
 
         return out.asImageBitmap()
     }
-
-    fun knobInsetForCell(cellSize: Int): Int =
-        (cellSize * KNOB_INSET_RATIO).toInt().coerceAtLeast(8)
 }

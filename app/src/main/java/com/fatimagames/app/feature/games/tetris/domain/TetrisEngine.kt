@@ -63,14 +63,20 @@ data class FallingPiece(
 
 class TetrisEngine(seed: Long = System.currentTimeMillis()) {
     private val rng = Random(seed)
-    val board: Array<IntArray> = Array(BOARD_ROWS) { IntArray(BOARD_COLS) }  // -1 = vazio, else = tetromino ordinal
+    val board: Array<IntArray> = Array(BOARD_ROWS) { IntArray(BOARD_COLS) }
 
     init {
         for (i in 0 until BOARD_ROWS) for (j in 0 until BOARD_COLS) board[i][j] = -1
     }
 
     var current: FallingPiece? = null; private set
-    var next: Tetromino = randomTetromino(); private set
+
+    // FIX X12: 7-bag randomizer — garante distribuição justa de peças
+    private val bag = ArrayDeque<Tetromino>()
+    var next: Tetromino = nextFromBag(); private set
+    var lockGracePeriodActive: Boolean = false; private set
+    var lockGraceStartedAt: Long = 0; private set
+    var pointsLastLineClear: Long = 0; private set
     var score: Long = 0L; private set
     var level: Int = 1; private set
     var lines: Int = 0; private set
@@ -79,32 +85,80 @@ class TetrisEngine(seed: Long = System.currentTimeMillis()) {
 
     fun spawnNext(): Boolean {
         val type = next
-        next = randomTetromino()
+        next = nextFromBag()
         val piece = FallingPiece(type = type, rotation = 0, row = 0, col = (BOARD_COLS / 2) - 2)
         if (collides(piece)) {
             gameOver = true
             return false
         }
         current = piece
+        lockGracePeriodActive = false
         return true
     }
 
-    fun moveLeft(): Boolean = tryMove { it.copy(col = it.col - 1) }
-    fun moveRight(): Boolean = tryMove { it.copy(col = it.col + 1) }
+    private fun nextFromBag(): Tetromino {
+        if (bag.isEmpty()) {
+            bag.addAll(Tetromino.entries.shuffled(rng))
+        }
+        return bag.removeFirst()
+    }
+
+    fun moveLeft(): Boolean = tryMove { it.copy(col = it.col - 1) }.also { if (it) onSuccessfulMove() }
+    fun moveRight(): Boolean = tryMove { it.copy(col = it.col + 1) }.also { if (it) onSuccessfulMove() }
 
     fun rotate(): Boolean = tryMove {
         it.copy(rotation = (it.rotation + 1) % it.type.blocks.size)
+    }.also { if (it) onSuccessfulMove() }
+
+    /** Quando movimento bem-sucedido durante lock grace, reseta o timer. */
+    private fun onSuccessfulMove() {
+        if (lockGracePeriodActive) {
+            lockGraceStartedAt = System.currentTimeMillis()
+        }
     }
 
-    /** Tick natural: tenta descer. Se não der, trava a peça. */
+    /** Retorna se a peça atual está pousada (não pode descer mais). */
+    fun pieceOnGround(): Boolean {
+        val piece = current ?: return false
+        return collides(piece.copy(row = piece.row + 1))
+    }
+
+    /** Tenta lockar a peça SE o lock grace expirou. */
+    fun maybeLockAfterGrace(graceMs: Long = 500L): Boolean {
+        val piece = current ?: return false
+        if (!pieceOnGround()) {
+            lockGracePeriodActive = false
+            return false
+        }
+        if (!lockGracePeriodActive) {
+            lockGracePeriodActive = true
+            lockGraceStartedAt = System.currentTimeMillis()
+            return false
+        }
+        if (System.currentTimeMillis() - lockGraceStartedAt >= graceMs) {
+            lockPiece(piece)
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Tick natural: tenta descer. Se não der, ATIVA lock grace (não trava imediatamente).
+     * O ViewModel deve chamar `maybeLockAfterGrace()` para travar quando grace expirar.
+     */
     fun tick(): Boolean {
         val piece = current ?: return false
         val moved = piece.copy(row = piece.row + 1)
         if (collides(moved)) {
-            lockPiece(piece)
+            // FIX X07: lock delay
+            if (!lockGracePeriodActive) {
+                lockGracePeriodActive = true
+                lockGraceStartedAt = System.currentTimeMillis()
+            }
             return false
         }
         current = moved
+        lockGracePeriodActive = false
         return true
     }
 
@@ -157,6 +211,7 @@ class TetrisEngine(seed: Long = System.currentTimeMillis()) {
             }
         }
         val cleared = clearFullRows()
+        pointsLastLineClear = 0
         if (cleared.isNotEmpty()) {
             lines += cleared.size
             val baseScore = when (cleared.size) {
@@ -165,11 +220,14 @@ class TetrisEngine(seed: Long = System.currentTimeMillis()) {
                 3 -> 500
                 else -> 800
             }
-            score += baseScore.toLong() * level
+            val gained = baseScore.toLong() * level
+            score += gained
+            pointsLastLineClear = gained
             level = (lines / 10 + 1).coerceAtLeast(1)
         }
         lastClearedRows = cleared
         current = null
+        lockGracePeriodActive = false
     }
 
     private fun clearFullRows(): List<Int> {

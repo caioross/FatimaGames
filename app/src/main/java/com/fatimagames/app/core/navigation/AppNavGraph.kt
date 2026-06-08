@@ -20,6 +20,7 @@ import com.fatimagames.app.feature.games.solitaire.SolitaireScreen
 import com.fatimagames.app.feature.games.tetris.TetrisScreen
 import com.fatimagames.app.feature.home.HomeScreen
 import com.fatimagames.app.feature.photolibrary.PhotoLibraryScreen
+import com.fatimagames.app.feature.splash.AnimatedSplashScreen
 import com.fatimagames.app.feature.settings.SettingsScreen
 import com.fatimagames.app.feature.stats.StatsScreen
 
@@ -29,9 +30,16 @@ fun AppNavGraph() {
     val theme = LocalAppTheme.current
     NavHost(
         navController = nav,
-        startDestination = HomeRoute,
+        startDestination = SplashRoute,
         modifier = Modifier.fillMaxSize().background(theme.color.bgCanvas),
     ) {
+        composable<SplashRoute> {
+            AnimatedSplashScreen(onFinished = {
+                nav.navigate(HomeRoute) {
+                    popUpTo(SplashRoute) { inclusive = true }
+                }
+            })
+        }
         composable<HomeRoute> {
             HomeScreen(
                 onGameJigsaw = { nav.navigate(JigsawSetupRoute) },

@@ -1,6 +1,16 @@
 package com.fatimagames.app.feature.games.solitaire.domain
 
 import kotlin.random.Random
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class SolitaireSnapshot(
+    val tableau: List<List<String>>,        // "S:5:T" = spade rank-5 face-up
+    val foundations: List<List<String>>,
+    val stock: List<String>,
+    val waste: List<String>,
+    val moves: Int,
+)
 
 /**
  * Engine de Klondike (Paciência clássica) — single draw, foundations por naipe.
@@ -91,6 +101,37 @@ class SolitaireEngine(seed: Long = System.currentTimeMillis()) {
     }
 
     fun isWin(): Boolean = foundations.sumOf { it.size } == 52
+
+    fun toSnapshot(): SolitaireSnapshot = SolitaireSnapshot(
+        tableau = tableau.map { pile -> pile.map { encodeCard(it) } },
+        foundations = foundations.map { pile -> pile.map { encodeCard(it) } },
+        stock = stock.map { encodeCard(it) },
+        waste = waste.map { encodeCard(it) },
+        moves = moves,
+    )
+
+    fun loadFromSnapshot(snap: SolitaireSnapshot) {
+        for (i in 0 until 7) {
+            tableau[i].clear()
+            tableau[i].addAll(snap.tableau.getOrNull(i)?.mapNotNull { decodeCard(it) }.orEmpty())
+        }
+        for (i in 0 until 4) {
+            foundations[i].clear()
+            foundations[i].addAll(snap.foundations.getOrNull(i)?.mapNotNull { decodeCard(it) }.orEmpty())
+        }
+        stock.clear(); stock.addAll(snap.stock.mapNotNull { decodeCard(it) })
+        waste.clear(); waste.addAll(snap.waste.mapNotNull { decodeCard(it) })
+        moves = snap.moves
+    }
+
+    private fun encodeCard(c: Card): String = "${c.suit.name[0]}:${c.rank.value}:${if (c.faceUp) "U" else "D"}"
+    private fun decodeCard(s: String): Card? {
+        val parts = s.split(":")
+        if (parts.size != 3) return null
+        val suit = Suit.entries.firstOrNull { it.name[0] == parts[0][0] } ?: return null
+        val rank = Rank.entries.firstOrNull { it.value == parts[1].toIntOrNull() } ?: return null
+        return Card(suit, rank, faceUp = parts[2] == "U")
+    }
 
     // ----- Internals -----
 

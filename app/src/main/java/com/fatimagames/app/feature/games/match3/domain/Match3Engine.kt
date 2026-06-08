@@ -2,7 +2,16 @@ package com.fatimagames.app.feature.games.match3.domain
 
 import kotlin.random.Random
 
+import kotlinx.serialization.Serializable
+
 enum class GemType { RAIN, LEAF, BLOOM, SUN, MOON, EMBER }
+
+@Serializable
+data class Match3Snapshot(
+    val cells: List<String>,   // ROWS * COLS encoded como "type:variant"
+    val score: Long,
+    val stage: Int,
+)
 
 /**
  * Conteúdo de uma célula. Pode ser gema normal, gema especial ou vazio.
@@ -60,6 +69,18 @@ class Match3Engine(seed: Long = System.currentTimeMillis()) {
 
     fun snapshot(): List<List<CellContent>> = board.map { it.toList() }
 
+    /** Verifica se um swap formaria match SEM aplicar de fato. */
+    fun peekSwapWouldMatch(r1: Int, c1: Int, r2: Int, c2: Int): Boolean {
+        if (!areAdjacent(r1, c1, r2, c2)) return false
+        val a = board[r1][c1]; val b = board[r2][c2]
+        if (a is CellContent.Empty || b is CellContent.Empty) return false
+        board[r1][c1] = b; board[r2][c2] = a
+        val matches = findAllMatches()
+        // Reverte
+        board[r1][c1] = a; board[r2][c2] = b
+        return matches.isNotEmpty()
+    }
+
     fun trySwap(r1: Int, c1: Int, r2: Int, c2: Int): SwapResult {
         if (!areAdjacent(r1, c1, r2, c2)) return SwapResult.Invalid
         val a = board[r1][c1]; val b = board[r2][c2]
@@ -84,12 +105,74 @@ class Match3Engine(seed: Long = System.currentTimeMillis()) {
         return SwapResult.Matched(totalGained, cascadeLevel)
     }
 
+    /**
+     * Variante "step-by-step" para animação. Aplica o swap e retorna se formou matches,
+     * SEM remover ainda. UI deve então chamar [clearMatchesStep] / [applyGravityStep] em loop.
+     */
+    fun applySwapOnly(r1: Int, c1: Int, r2: Int, c2: Int): Boolean {
+        if (!areAdjacent(r1, c1, r2, c2)) return false
+        val a = board[r1][c1]; val b = board[r2][c2]
+        if (a is CellContent.Empty || b is CellContent.Empty) return false
+        board[r1][c1] = b; board[r2][c2] = a
+        val matches = findAllMatches()
+        if (matches.cells.isEmpty()) {
+            // Reverter
+            board[r1][c1] = a; board[r2][c2] = b
+            return false
+        }
+        return true
+    }
+
+    /** Encontra matches atuais e marca-os como Empty. Retorna info p/ animação. */
+    fun clearMatchesStep(cascadeLevel: Int): ClearResult? {
+        val matches = findAllMatches()
+        if (matches.cells.isEmpty()) return null
+        val gained = removeAndScore(matches, cascadeLevel)
+        score += gained
+        return ClearResult(cells = matches.cells.toSet(), gained = gained)
+    }
+
+    /**
+     * Aplica gravidade após [clearMatchesStep] e gera novas gemas no topo.
+     * Retorna mapa: (rDestino, cDestino) → rOrigem (de onde a gema caiu).
+     * Cells que receberam gemas novas têm rOrigem = -1.
+     */
+    fun applyGravityStep(): Map<Pair<Int, Int>, Int> {
+        val moves = mutableMapOf<Pair<Int, Int>, Int>()
+        for (c in 0 until BOARD_SIZE) {
+            // Para cada coluna, colapsa células não-vazias para baixo
+            val column = (0 until BOARD_SIZE).map { board[it][c] }
+            val nonEmptyWithOrigin = mutableListOf<Pair<CellContent, Int>>()
+            for ((idx, cell) in column.withIndex()) {
+                if (cell !is CellContent.Empty) nonEmptyWithOrigin.add(cell to idx)
+            }
+            // Preenche de baixo pra cima
+            var writeRow = BOARD_SIZE - 1
+            for ((cell, originRow) in nonEmptyWithOrigin.reversed()) {
+                if (writeRow != originRow) {
+                    board[writeRow][c] = cell
+                    board[originRow][c] = CellContent.Empty
+                    moves[(writeRow to c)] = originRow
+                }
+                writeRow--
+            }
+            // Topo recebe novas gemas
+            for (r in writeRow downTo 0) {
+                board[r][c] = CellContent.Normal(GemType.entries.random(rng))
+                moves[(r to c)] = -1
+            }
+        }
+        return moves
+    }
+
+    data class ClearResult(val cells: Set<Pair<Int, Int>>, val gained: Long)
+
     private fun areAdjacent(r1: Int, c1: Int, r2: Int, c2: Int): Boolean =
         (r1 == r2 && kotlin.math.abs(c1 - c2) == 1) ||
             (c1 == c2 && kotlin.math.abs(r1 - r2) == 1)
 
     /** Encontra runs ≥3 e marca células incluindo runs especiais. */
-    private fun findAllMatches(): MatchResult {
+    internal fun findAllMatches(): MatchResult {
         val cells = mutableSetOf<Pair<Int, Int>>()
         val runs = mutableListOf<Run>()
 
@@ -201,17 +284,50 @@ class Match3Engine(seed: Long = System.currentTimeMillis()) {
     }
 
     fun advanceStage() { if (stage < stageTargets.size - 1) stage++ }
+
+    fun toSnapshot(): Match3Snapshot {
+        val cells = mutableListOf<String>()
+        for (r in 0 until BOARD_SIZE) for (c in 0 until BOARD_SIZE) {
+            cells.add(encodeCell(board[r][c]))
+        }
+        return Match3Snapshot(cells = cells, score = score, stage = stage)
+    }
+
+    fun loadFromSnapshot(snap: Match3Snapshot) {
+        var i = 0
+        for (r in 0 until BOARD_SIZE) for (c in 0 until BOARD_SIZE) {
+            board[r][c] = decodeCell(snap.cells.getOrNull(i++) ?: "EMPTY")
+        }
+        score = snap.score
+        stage = snap.stage
+    }
+
+    private fun encodeCell(cell: CellContent): String = when (cell) {
+        is CellContent.Empty -> "EMPTY"
+        is CellContent.Normal -> "N:${cell.type.name}"
+        is CellContent.FlameH -> "FH:${cell.type.name}"
+        is CellContent.FlameV -> "FV:${cell.type.name}"
+        is CellContent.Bomb -> "B:${cell.type.name}"
+    }
+    private fun decodeCell(s: String): CellContent = when {
+        s == "EMPTY" -> CellContent.Empty
+        s.startsWith("N:") -> CellContent.Normal(GemType.valueOf(s.substring(2)))
+        s.startsWith("FH:") -> CellContent.FlameH(GemType.valueOf(s.substring(3)))
+        s.startsWith("FV:") -> CellContent.FlameV(GemType.valueOf(s.substring(3)))
+        s.startsWith("B:") -> CellContent.Bomb(GemType.valueOf(s.substring(2)))
+        else -> CellContent.Empty
+    }
 }
 
-private enum class RunOrientation { HORIZONTAL, VERTICAL }
-private data class Run(
+internal enum class RunOrientation { HORIZONTAL, VERTICAL }
+internal data class Run(
     val orientation: RunOrientation,
     val row: Int,
     val col: Int,
     val length: Int,
     val type: GemType,
 )
-private data class MatchResult(val cells: Set<Pair<Int, Int>>, val runs: List<Run>) {
+internal data class MatchResult(val cells: Set<Pair<Int, Int>>, val runs: List<Run>) {
     fun isEmpty() = cells.isEmpty()
     fun isNotEmpty() = cells.isNotEmpty()
 }

@@ -20,6 +20,8 @@ import javax.inject.Inject
 
 data class FroggerUiState(
     val frog: Frog = Frog(12, 5),
+    val facingDeg: Float = 0f,
+    val goalSlots: List<Boolean> = List(5) { false },
     val lanes: List<Lane> = emptyList(),
     val obstaclePositions: Map<Int, List<Pair<Float, Int>>> = emptyMap(),
     val lives: Int = 3,
@@ -31,12 +33,14 @@ data class FroggerUiState(
 @HiltViewModel
 class FroggerViewModel @Inject constructor(
     private val recordRepo: RecordRepository,
+    private val haptic: com.fatimagames.app.core.feedback.HapticController,
 ) : ViewModel() {
 
     private var engine = FroggerEngine()
     private var loopJob: Job? = null
     private val startTime = System.currentTimeMillis()
     private var finished = false
+    private var paused = false
 
     private val _uiState = MutableStateFlow(FroggerUiState())
     val uiState: StateFlow<FroggerUiState> = _uiState.asStateFlow()
@@ -46,15 +50,33 @@ class FroggerViewModel @Inject constructor(
         startLoop()
     }
 
+    fun onLifecyclePause() {
+        paused = true
+        loopJob?.cancel()
+    }
+
+    fun onLifecycleResume() {
+        paused = false
+        if (engine.status == FrogStatus.ALIVE && !finished) startLoop()
+    }
+
     private fun startLoop() {
         loopJob?.cancel()
         loopJob = viewModelScope.launch {
             val dt = 50L
+            var prevLives = engine.lives
             while (true) {
                 delay(dt)
+                if (paused) continue
                 engine.update(dt / 1000f)
+                if (engine.lives < prevLives) {
+                    haptic.error()
+                    prevLives = engine.lives
+                }
                 publish()
                 if (engine.status != FrogStatus.ALIVE) {
+                    if (engine.status == FrogStatus.WON) haptic.win()
+                    else haptic.error()
                     saveRecord()
                     break
                 }
@@ -62,10 +84,10 @@ class FroggerViewModel @Inject constructor(
         }
     }
 
-    fun moveUp() { engine.moveUp(); publish() }
-    fun moveDown() { engine.moveDown(); publish() }
-    fun moveLeft() { engine.moveLeft(); publish() }
-    fun moveRight() { engine.moveRight(); publish() }
+    fun moveUp() { engine.moveUp(); haptic.tick(); publish() }
+    fun moveDown() { engine.moveDown(); haptic.tick(); publish() }
+    fun moveLeft() { engine.moveLeft(); haptic.tick(); publish() }
+    fun moveRight() { engine.moveRight(); haptic.tick(); publish() }
 
     fun restart() {
         loopJob?.cancel()
@@ -78,6 +100,8 @@ class FroggerViewModel @Inject constructor(
     private fun publish() {
         _uiState.value = _uiState.value.copy(
             frog = engine.frog,
+            facingDeg = engine.facingDeg,
+            goalSlots = engine.goalSlots.toList(),
             lanes = engine.lanes,
             obstaclePositions = engine.obstaclePositions(),
             lives = engine.lives,

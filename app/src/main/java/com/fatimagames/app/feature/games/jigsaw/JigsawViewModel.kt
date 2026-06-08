@@ -13,6 +13,7 @@ import com.fatimagames.app.feature.games.jigsaw.domain.JigsawEngine
 import com.fatimagames.app.feature.games.jigsaw.domain.JigsawSession
 import com.fatimagames.app.feature.games.jigsaw.domain.PhotoLoader
 import com.fatimagames.app.feature.games.jigsaw.domain.PieceState
+import com.fatimagames.app.core.feedback.HapticController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,7 @@ class JigsawViewModel @Inject constructor(
     private val session: JigsawSession,
     private val recordRepo: RecordRepository,
     private val stateRepo: GameStateRepository,
+    private val haptic: HapticController,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -84,6 +86,12 @@ class JigsawViewModel @Inject constructor(
         publishPlaying(completed = false)
     }
 
+    fun onPieceRotate(pieceId: Int, deltaDeg: Float) {
+        val eng = engine ?: return
+        eng.rotateBy(pieceId, deltaDeg)
+        publishPlaying(completed = false)
+    }
+
     fun onPieceReleased(pieceId: Int) {
         val eng = engine ?: return
         val snappedIds = mutableSetOf<Int>()
@@ -107,7 +115,11 @@ class JigsawViewModel @Inject constructor(
             completed = done,
             justSnappedPieceIds = snappedIds,
         )
-        if (done) finishGame()
+        if (snappedIds.isNotEmpty()) haptic.snap()
+        if (done) {
+            haptic.win()
+            finishGame()
+        }
     }
 
     private fun publishPlaying(completed: Boolean) {

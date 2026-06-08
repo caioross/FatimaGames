@@ -2,6 +2,7 @@ package com.fatimagames.app.core.navigation
 
 import kotlinx.serialization.Serializable
 
+@Serializable object SplashRoute
 @Serializable object HomeRoute
 @Serializable object StatsRoute
 @Serializable object SettingsRoute

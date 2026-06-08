@@ -23,6 +23,16 @@ class JigsawEngine(
     fun definitionOf(pieceId: Int): PieceDefinition? =
         board.pieces.firstOrNull { it.id == pieceId }
 
+    /** Rotaciona uma peça (apenas se for grupo de 1). Snap final só com rotação ≈ 0°. */
+    fun rotateBy(pieceId: Int, deltaDeg: Float): Boolean {
+        val state = statesById[pieceId] ?: return false
+        // Só rotaciona se a peça não está em grupo (single piece)
+        val groupSize = statesById.values.count { it.groupId == state.groupId }
+        if (groupSize > 1) return false
+        statesById[pieceId] = state.copy(rotationDeg = state.rotationDeg + deltaDeg)
+        return true
+    }
+
     /** Move uma peça (e todas do grupo) por delta. Retorna lista de IDs movidos. */
     fun moveBy(pieceId: Int, dx: Float, dy: Float): List<Int> {
         val state = statesById[pieceId] ?: return emptyList()
@@ -44,6 +54,11 @@ class JigsawEngine(
     fun trySnap(pieceId: Int): Boolean {
         val state = statesById[pieceId] ?: return false
         val def = definitionOf(pieceId) ?: return false
+        // Não permite snap se a peça está rotacionada significativamente
+        // Tolerância: ±15° (e snap-fixa para 0° ao encaixar)
+        val rotMod = ((state.rotationDeg % 360f) + 360f) % 360f
+        val nearZero = rotMod < 15f || rotMod > 345f
+        if (!nearZero) return false
         val cell = board.cellSizePx.toFloat()
         val groupId = state.groupId
 
@@ -78,8 +93,14 @@ class JigsawEngine(
                                 xPx = s.xPx + correction.first,
                                 yPx = s.yPx + correction.second,
                                 groupId = targetGroup,
+                                rotationDeg = 0f,    // snap-fixa rotação para 0
                             )
                         }
+                    }
+                    // Reset rotação da peça-alvo também
+                    val movedSelf = statesById[pieceId]
+                    if (movedSelf != null) {
+                        statesById[pieceId] = movedSelf.copy(rotationDeg = 0f)
                     }
                     return true
                 }
