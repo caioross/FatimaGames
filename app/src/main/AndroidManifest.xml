@@ -2,13 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      Apenas VIBRATE: usada pela háptica (core/feedback/Haptics.kt).
+      A escolha de fotos do Quebra-cabeça usa o Android Photo Picker
+      (ActivityResultContracts.PickVisualMedia), que NÃO requer permissão —
+      por isso não declaramos CAMERA, READ_MEDIA_IMAGES nem READ_EXTERNAL_STORAGE.
+    -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"
-        tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".FatimaGamesApp"

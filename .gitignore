@@ -12,6 +12,7 @@ local.properties
 /app/release
 *.keystore
 *.jks
+keystore.properties
 
 # Ferramentas internas
 .claude/
