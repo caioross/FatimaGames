@@ -19,3 +19,8 @@ keystore.properties
 
 # Site de apresentacao = repositorio separado
 /site/
+
+.env
+.env.local
+!.env.example
+docs/play-store/SETUP-LOGIN-GOOGLE.md

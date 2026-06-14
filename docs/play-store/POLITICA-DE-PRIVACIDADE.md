@@ -30,6 +30,16 @@ enviadas para nenhum servidor.
 Seus recordes, configurações e o estado das partidas ficam salvos **localmente** no seu
 dispositivo. **Desinstalar o app remove todos esses dados.**
 
+## Login com Google (cadastro de testador) — somente no site
+
+Para participar do teste na Google Play, o site do FatimaGames oferece um botão
+**"Entrar com Google"**. Se você usá-lo, recebemos do Google **apenas o seu nome e
+e-mail** e os guardamos em um banco de dados seguro, com a **única finalidade** de
+adicionar você à lista de testadores do aplicativo. Não recebemos sua senha, não
+acessamos seus contatos e **não compartilhamos nem vendemos** esses dados. O uso é
+opcional, e o jogo em si continua sem login e 100% offline. Você pode pedir a remoção do
+seu e-mail a qualquer momento pelo contato abaixo.
+
 ## Permissões
 
 O app usa **apenas a permissão de vibração** (`VIBRATE`), para o retorno tátil
@@ -79,6 +89,15 @@ on your device**, for you to play. They are **never** uploaded anywhere.
 
 Your records, settings and saved games are stored **locally** on your device.
 **Uninstalling the app removes all of this data.**
+
+## Sign in with Google (tester registration) — website only
+
+To join the test on Google Play, the FatimaGames website offers a **"Sign in with
+Google"** button. If you use it, we receive **only your name and email** from Google and
+store them in a secure database, for the **sole purpose** of adding you to the app's
+testers list. We do not receive your password, do not access your contacts, and **do not
+share or sell** this data. It is optional, and the game itself stays login-free and 100%
+offline. You can request removal of your email at any time via the contact below.
 
 ## Permissions
 
