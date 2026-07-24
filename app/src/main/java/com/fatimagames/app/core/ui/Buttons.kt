@@ -131,7 +131,7 @@ fun CircleIconButton(
     val tint = iconTint ?: theme.color.primaryPressed
     Box(
         modifier = modifier
-            .size(44.dp)
+            .size(56.dp)
             .clip(CircleShape)
             .background(bg)
             .clickable(onClick = onClick)
